@@ -3348,6 +3348,7 @@ public class SiteAction extends PagedResourceActionII {
 			 */
 			
 			context.put("basedOnTemplate",  state.getAttribute(STATE_TEMPLATE_SITE) != null ? Boolean.TRUE:Boolean.FALSE);
+			context.put("publishTemplate", (Boolean) state.getAttribute(STATE_TEMPLATE_PUBLISH));
 			
 			// bjones86 - SAK-21706
 			context.put( CONTEXT_SKIP_COURSE_SECTION_SELECTION, 
@@ -3430,6 +3431,7 @@ public class SiteAction extends PagedResourceActionII {
 					"roster.available.weeks.before.term.start", "0"));
 			
 			context.put("basedOnTemplate",  state.getAttribute(STATE_TEMPLATE_SITE) != null ? Boolean.TRUE:Boolean.FALSE);
+			context.put("publishTemplate", (Boolean) state.getAttribute(STATE_TEMPLATE_PUBLISH));
 			
 			context.put("requireAuthorizer", ServerConfigurationService.getString(SAK_PROP_REQUIRE_AUTHORIZER, "true").equals("true")?Boolean.TRUE:Boolean.FALSE);
 			
@@ -8920,6 +8922,10 @@ private Map<String,List> getTools(SessionState state, String type, Site site) {
 	 * 
 	 */
 	public void doUpdate_site_access(RunData data) {
+		if (!"POST".equals(data.getRequest().getMethod())) {
+			M_log.warn("Ignoring non-POST request to update site access.");
+			return;
+		}
 		SessionState state = ((JetspeedRunData) data)
 				.getPortletSessionState(((JetspeedRunData) data).getJs_peid());
 		Site sEdit = getStateSite(state);
@@ -13471,7 +13477,21 @@ private Map<String,List> getTools(SessionState state, String type, Site site) {
 	public void doAdd_site_option(RunData data) {
 		String option = data.getParameters().getString("option");
 		if ("finish".equals(option)) {
-			doFinish(data);
+			SessionState state = ((JetspeedRunData) data).getPortletSessionState(((JetspeedRunData) data).getJs_peid());
+			Site site = getStateSite(state);
+			if (site == null)
+			{
+				doFinish(data);
+			}
+			else  // There is a site in the state already, likely from a previous request that is still processing
+			{
+				// Abort this request to prevent adding multiple copies of tools to the same site.
+				String msg = "Detected request to create a site while site %s already exists in current session state. Aborting request.";
+				if (M_log.isDebugEnabled())
+				{
+					M_log.debug(String.format(msg, StringUtils.trimToEmpty(site.getId())));
+				}
+			}
 		} else if ("cancel".equals(option)) {
 			doCancel_create(data);
 		} else if ("back".equals(option)) {

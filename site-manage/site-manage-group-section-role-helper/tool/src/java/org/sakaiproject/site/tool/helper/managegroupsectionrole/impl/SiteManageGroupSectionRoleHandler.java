@@ -38,6 +38,7 @@ import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
 import org.sakaiproject.site.util.Participant;
 import org.sakaiproject.site.util.SiteConstants;
+import org.sakaiproject.site.util.SiteGroupHelper;
 import org.sakaiproject.site.util.SiteParticipantHelper;
 import org.sakaiproject.site.util.GroupHelper;
 import org.sakaiproject.sitemanage.api.SiteHelper;
@@ -57,6 +58,7 @@ import java.util.Arrays;
 import org.sakaiproject.coursemanagement.api.CourseManagementService;
 import org.sakaiproject.coursemanagement.api.Section;
 import org.sakaiproject.coursemanagement.api.exception.IdNotFoundException;
+import uk.org.ponder.messageutil.MessageLocator;
 
 /**
  * 
@@ -72,6 +74,8 @@ public class SiteManageGroupSectionRoleHandler {
 	
 	private List<Member> groupMembers;
     private final GroupComparator groupComparator = new GroupComparator();
+
+    public MessageLocator messageLocator;
 	
     public Site site = null;
     public SiteService siteService = null;
@@ -378,17 +382,11 @@ public class SiteManageGroupSectionRoleHandler {
             	if (group != null)
             	{
             		String roleProviderId = group.getProperties().getProperty(SiteConstants.GROUP_PROP_ROLE_PROVIDERID);
-            		if (roleProviderId != null)
-            		{
-            			if (groupProvider != null)
-            			{
-	            			String[] groupProvidedRoles = groupProvider.unpackId(roleProviderId);
-                            for( String groupProvidedRole : groupProvidedRoles )
-                            {
-                                roles.remove( group.getRole( groupProvidedRole ) );
-                            }
-            			}
-            		}
+	            	Collection<String> groupProvidedRoles = SiteGroupHelper.unpack(roleProviderId);
+	            	for(String role: groupProvidedRoles)
+	            	{
+	            		roles.remove(group.getRole(role));
+	            	}
             	}
             }
         }
@@ -1034,7 +1032,7 @@ public class SiteManageGroupSectionRoleHandler {
                         group.getProperties().addProperty(Group.GROUP_PROP_WSETUP_CREATED, Boolean.TRUE.toString());
                         group.setProviderGroupId(roster);
 
-                        String groupTitle = truncateGroupTitle(roster);
+                        String groupTitle = truncateGroupTitle( getRosterLabel( roster ) + " " + messageLocator.getMessage( "group.autocreate.section.postfix" ) );
                         group.setTitle(groupTitle);
                     }
                 }
@@ -1254,30 +1252,16 @@ public class SiteManageGroupSectionRoleHandler {
 		}
 		return oTitle.trim();
 	}
-    
-    /**
-     * Return a single string representing the provider id list
-     * @param idsList
-     */
-    private String getProviderString(List<String> idsList)
-    {
-    	String[] sArray = new String[idsList.size()];
-		sArray = (String[]) idsList.toArray(sArray);
-		if (groupProvider != null)
-		{
-			return groupProvider.packId(sArray);
-		}
-		else
-		{
-			// simply concat strings
-			StringBuilder rv = new StringBuilder();
-			for(String sArrayString:sArray)
-			{
-				rv.append(" ").append(sArrayString);
-			}
-			return rv.toString();
-		}
-    }
+
+	/**
+	 * Return a single string representing the provider id list
+	 * @param idsList
+	 */
+	private String getProviderString(List<String> idsList)
+	{
+		return SiteGroupHelper.pack(idsList);
+	}
+
     /**
      * Removes a group from the site
      * 
@@ -1365,9 +1349,9 @@ public class SiteManageGroupSectionRoleHandler {
     }
     
     /**
-     * check whether there is already a group within the site containing the role id
-     * @param roleId
-     * @return
+     * Check whether there is already a group within the site containing the role id
+     * @param roleId This role to check the site groups against. eg: access.
+     * @return <code>true</code> if this a group for this role already exists.
      */
     public boolean existRoleGroup(String roleId)
     {

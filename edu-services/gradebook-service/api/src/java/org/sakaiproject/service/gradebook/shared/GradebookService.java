@@ -90,39 +90,37 @@ public interface GradebookService {
         INVALID_DECIMAL
     }
 	
-	@SuppressWarnings("rawtypes")
-	public static Comparator lettergradeComparator = new Comparator() 
-	{
-		public int compare(Object o1, Object o2) 
-		{
-			if(((String)o1).toLowerCase().charAt(0) == ((String)o2).toLowerCase().charAt(0))
-			{
-				if(((String)o1).length() == 2 && ((String)o2).length() == 2)
-				{
-					if(((String)o1).charAt(1) == '+')
-						return 0;
-					else
+    /**
+     * Comparator to ensure correct ordering of letter grades, catering for + and - in the grade
+     */
+    public static Comparator<String> lettergradeComparator = new Comparator<String>() {
+		public int compare(String o1, String o2){
+			if(o1.toLowerCase().charAt(0) == o2.toLowerCase().charAt(0)) {
+				if(o1.length() == 2 && o2.length() == 2) {
+					if(o1.charAt(1) == '+') {
+						return -1; //SAK-30094
+					} else {
 						return 1;
+					}
 				}
-				if(((String)o1).length() == 1 && ((String)o2).length() == 2)
-				{
-					if(((String)o2).charAt(1) == '+')
-						return 1;
-					else
-						return 0;
+				if(o1.length() == 1 && o2.length() == 2) {
+					if(o2.charAt(1) == '+') {
+						return 1; //SAK-30094
+					} else {
+						return -1;
+					}
 				}
-				if(((String)o1).length() == 2 && ((String)o2).length() == 1)
-				{
-					if(((String)o1).charAt(1) == '+')
-						return 0;
-					else
+				if(o1.length() == 2 && o2.length() == 1) {
+					if(o1.charAt(1) == '+') {
+						return -1; //SAK-30094
+					} else {
 						return 1;
+					}
 				}
 				return 0;
 			}
-			else
-			{
-				return ((String)o1).toLowerCase().compareTo(((String)o2).toLowerCase());
+			else {
+				return o1.toLowerCase().compareTo(o2.toLowerCase());
 			}
 		}
 	};
@@ -520,6 +518,11 @@ public interface GradebookService {
 	public boolean currentUserHasViewOwnGradesPerm(String gradebookUid);
 	
 	/**
+	 * Get the grade records for the given list of students and the given assignment.
+	 * This can only be called by an instructor or TA that has access, not student.
+	 * 
+	 * See {@link #getGradeDefinitionForStudentForItem} for the method call that can be made as a student.
+	 * 
 	 * @param gradebookUid
 	 * @param assignmentId
 	 * @param studentIds
